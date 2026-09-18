@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Archive, Check, ChevronDown, Download, ImageIcon, LoaderCircle, LockKeyhole, Maximize2, RefreshCw, Sparkles, Trash2, UploadCloud, X } from "lucide-react";
-import type { CompressionMode, CompressionSettings, JobFileRecord, OutputFormat, ResizeMode } from "@/lib/compression/types";
+import type { CompressionSettings, JobFileRecord, OutputFormat, ResizeMode } from "@/lib/compression/types";
 import { cn, formatBytes } from "@/lib/utils";
 
 type FileStatus = "ready" | "queued" | "uploading" | "processing" | "done" | "error" | "cancelled";
@@ -20,12 +20,6 @@ const MAX_FILES = 20;
 const MAX_BYTES = 50 * 1024 * 1024;
 const ACCEPTED_EXTENSIONS = /\.(jpe?g|png|webp|avif)$/i;
 
-const modes: Array<{ id: CompressionMode; title: string; detail: string }> = [
-  { id: "quality", title: "Best quality", detail: "Crisp & clear" },
-  { id: "balanced", title: "Balanced", detail: "Recommended" },
-  { id: "smallest", title: "Smallest", detail: "Maximum savings" },
-  { id: "target", title: "Target size", detail: "Enter exact KB" }
-];
 
 async function readError(responseText: string) {
   try { return JSON.parse(responseText).error?.message ?? "Compression failed."; }
@@ -193,8 +187,6 @@ export function Compressor({
       setRunning(false);
     }
   }
-
-  function cancel(localId: string) { requests.current.get(localId)?.abort(); }
 
   async function clearAll() {
     for (const request of requests.current.values()) request.abort();

@@ -1,23 +1,33 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+
+function subscribe(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+
+function getSnapshot() {
+  return localStorage.getItem("sizvo-theme") ?? localStorage.getItem("compressly-theme") ?? "light";
+}
+
+function getServerSnapshot() {
+  return "light";
+}
 
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false);
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const dark = theme === "dark";
 
   useEffect(() => {
-    const stored = localStorage.getItem("sizvo-theme") ?? localStorage.getItem("compressly-theme");
-    const isDark = stored === "dark";
-    setDark(isDark);
-    document.documentElement.classList.toggle("dark", isDark);
-  }, []);
+    document.documentElement.classList.toggle("dark", dark);
+  }, [dark]);
 
   function toggle() {
-    const next = !document.documentElement.classList.contains("dark");
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-    localStorage.setItem("sizvo-theme", next ? "dark" : "light");
+    const next = dark ? "light" : "dark";
+    localStorage.setItem("sizvo-theme", next);
+    window.dispatchEvent(new Event("storage"));
   }
 
   return (

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ImageDown, LockKeyhole, Sparkles } from "lucide-react";
+import { ImageDown, LockKeyhole } from "lucide-react";
 
 export function Footer() {
   return (

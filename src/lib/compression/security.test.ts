@@ -9,7 +9,6 @@ import {
   RateLimitError,
   resetRateLimitsForTesting
 } from "./rate-limit";
-import { ValidationError } from "./validation";
 
 describe("Security & Anti-DDoS Protections", () => {
   beforeEach(() => {
