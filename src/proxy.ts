@@ -9,7 +9,7 @@ const SUSPICIOUS_PATH_PATTERNS = [
   /%2e%2e/i // Encoded directory traversal
 ];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const ip = extractClientIp(request);
 
