@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { getBaseUrl } from "@/lib/utils";
 
 const fontSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -48,7 +49,7 @@ export const metadata: Metadata = {
     "compress multiple images", "compress multiple photos", "compress images in bulk", "bulk photo compressor", "batch photo compression",
     "compress multiple jpg files", "compress multiple png files", "bulk jpg compressor", "bulk png compressor", "compress images and download zip"
   ],
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(getBaseUrl()),
   openGraph: {
     title: "Sizvo Compressor — Make Files Smaller",
     description: "Make Files Smaller. Compress images and videos to exact KB and MB targets without quality loss. 100% private, no account needed.",
@@ -62,7 +63,7 @@ export const metadata: Metadata = {
   }
 };
 
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const baseUrl = getBaseUrl();
 
 const jsonLd = {
   "@context": "https://schema.org",

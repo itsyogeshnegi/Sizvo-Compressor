@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
 import { SEO_PAGES } from "@/lib/seo/config";
+import { getBaseUrl } from "@/lib/utils";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const baseUrl = getBaseUrl();
   const now = new Date();
 
   const routes: MetadataRoute.Sitemap = [

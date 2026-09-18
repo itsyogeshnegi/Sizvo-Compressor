@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, ChevronRight, HelpCircle, Layers3, ShieldCheck, Sparkles, UploadCloud, Zap } from "lucide-react";
 import { SEO_PAGES } from "@/lib/seo/config";
 import { MediaCompressor } from "@/components/media-compressor";
+import { getBaseUrl } from "@/lib/utils";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -18,7 +19,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const config = SEO_PAGES[slug];
   if (!config) return {};
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const baseUrl = getBaseUrl();
   const pageUrl = `${baseUrl}/${config.slug}`;
 
   return {
@@ -48,7 +49,7 @@ export default async function SeoLandingPage({ params }: PageProps) {
   const config = SEO_PAGES[slug];
   if (!config) notFound();
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const baseUrl = getBaseUrl();
 
   // Structured Data (JSON-LD) for Google Search Rich Snippets
   const jsonLd = {
