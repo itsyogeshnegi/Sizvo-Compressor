@@ -1,0 +1,43 @@
+{
+  servers {
+    timeouts {
+      read_body 180s
+      read_header 15s
+      write 300s
+      idle 120s
+    }
+    max_header_size 16KB
+  }
+}
+
+{$SITE_ADDRESS:localhost} {
+  encode zstd gzip
+
+  request_body {
+    max_size 505MB
+  }
+
+  header {
+    -Server
+    -X-Powered-By
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+  }
+
+  # Block common scanner bots and exploit probes early at reverse-proxy layer
+  @exploits {
+    path_regexp malicious (?i)\.(env|git|svn|htaccess|sql|bak|config)
+    path_regexp cms (?i)\/(wp-login|wp-admin|xmlrpc|phpmyadmin)
+  }
+  respond @exploits "Access Denied" 403
+
+  reverse_proxy app:3000 {
+    header_up X-Real-IP {remote_host}
+    header_up Host {host}
+    transport http {
+      response_header_timeout 300s
+      dial_timeout 10s
+    }
+  }
+}

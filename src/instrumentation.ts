@@ -1,0 +1,11 @@
+export async function register() {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  const { cleanupExpiredJobs } = await import("@/lib/compression/storage");
+  const globalState = globalThis as typeof globalThis & { sizvoCleanupTimer?: NodeJS.Timeout };
+  if (globalState.sizvoCleanupTimer) return;
+  await cleanupExpiredJobs().catch(console.error);
+  globalState.sizvoCleanupTimer = setInterval(() => {
+    void cleanupExpiredJobs().catch(console.error);
+  }, 5 * 60 * 1000);
+  globalState.sizvoCleanupTimer.unref();
+}
