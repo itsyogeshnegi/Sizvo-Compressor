@@ -1,8 +1,8 @@
-import { PassThrough, Readable } from "node:stream";
-import archiver from "archiver";
+import { readFile } from "node:fs/promises";
 import { apiError } from "@/lib/compression/errors";
 import { getJob, outputPath } from "@/lib/compression/storage";
 import { ValidationError } from "@/lib/compression/validation";
+import { createZipArchive, type ZipEntry } from "@/lib/compression/zip";
 
 export const runtime = "nodejs";
 
@@ -11,19 +11,20 @@ export async function GET(_request: Request, { params }: { params: Promise<{ job
     const { jobId } = await params;
     const job = await getJob(jobId);
     if (!job.files.length) throw new ValidationError("Compress at least one image before downloading a ZIP.");
-    const output = new PassThrough();
-    const archive = archiver("zip", { zlib: { level: 1 } });
-    archive.on("error", (error) => output.destroy(error));
-    archive.pipe(output);
+
     const usedNames = new Map<string, number>();
+    const entries: ZipEntry[] = [];
     for (const file of job.files) {
       const count = usedNames.get(file.fileName) ?? 0;
       usedNames.set(file.fileName, count + 1);
       const name = count ? file.fileName.replace(/(\.[^.]+)$/, `-${count + 1}$1`) : file.fileName;
-      archive.file(outputPath(jobId, file.id), { name });
+      const content = await readFile(outputPath(jobId, file.id));
+      entries.push({ name, content });
     }
-    void archive.finalize();
-    return new Response(Readable.toWeb(output) as ReadableStream, {
+
+    const zipBuffer = createZipArchive(entries);
+
+    return new Response(new Uint8Array(zipBuffer), {
       headers: {
         "Content-Type": "application/zip",
         "Content-Disposition": "attachment; filename=sizvo-images.zip",
@@ -34,3 +35,4 @@ export async function GET(_request: Request, { params }: { params: Promise<{ job
     return apiError(error);
   }
 }
+
