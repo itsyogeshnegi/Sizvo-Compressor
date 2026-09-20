@@ -14,7 +14,7 @@ import { parseVideoSettings, ValidationError } from "@/lib/compression/validatio
 import { compressVideo } from "@/lib/compression/video";
 
 export const runtime = "nodejs";
-export const maxDuration = 1800;
+export const maxDuration = 60;
 
 export async function POST(request: Request, { params }: { params: Promise<{ jobId: string }> }) {
   let inputPath: string | null = null;
