@@ -1,9 +1,27 @@
+import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+
+/**
+ * Video compression endpoint - Temporarily deferred to Phase 2.
+ * The full implementation is preserved below for Phase 2 activation.
+ */
+export async function POST() {
+  return NextResponse.json(
+    { message: "Video compression is coming in Phase 2." },
+    { status: 501 }
+  );
+}
+
+/*
+================================================================================
+PHASE 2 IMPLEMENTATION PRESERVED FOR FUTURE ACTIVATION:
+================================================================================
 import { randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import { rm } from "node:fs/promises";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { NextResponse } from "next/server";
 import { MAX_VIDEO_FILE_BYTES, MAX_VIDEO_FILES } from "@/lib/compression/config";
 import { apiError } from "@/lib/compression/errors";
 import { clientKey, enforceRateLimit } from "@/lib/compression/rate-limit";
@@ -13,10 +31,7 @@ import type { JobFileRecord } from "@/lib/compression/types";
 import { parseVideoSettings, ValidationError } from "@/lib/compression/validation";
 import { compressVideo } from "@/lib/compression/video";
 
-export const runtime = "nodejs";
-export const maxDuration = 60;
-
-export async function POST(request: Request, { params }: { params: Promise<{ jobId: string }> }) {
+export async function POST_PHASE_2(request: Request, { params }: { params: Promise<{ jobId: string }> }) {
   let inputPath: string | null = null;
   let outputFilePath: string | null = null;
   try {
@@ -76,3 +91,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
     return apiError(error);
   }
 }
+================================================================================
+*/

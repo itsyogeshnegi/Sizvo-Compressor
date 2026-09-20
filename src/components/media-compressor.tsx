@@ -1,18 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Film, Image as ImageIcon } from "lucide-react";
 import { Compressor } from "./compressor";
-import { VideoCompressor } from "./video-compressor";
-
 import type { OutputFormat, VideoCompressionMode } from "@/lib/compression/types";
 
+// Note: Video compressor is preserved for Phase 2
+// import { useState } from "react";
+// import { Film, Image as ImageIcon } from "lucide-react";
+// import { VideoCompressor } from "./video-compressor";
+
 export function MediaCompressor({
-  initialMedia = "image",
   initialTargetKb,
   initialFormat,
-  initialTargetMb,
-  initialVideoMode
 }: {
   initialMedia?: "image" | "video";
   initialTargetKb?: string;
@@ -20,18 +18,16 @@ export function MediaCompressor({
   initialTargetMb?: number;
   initialVideoMode?: VideoCompressionMode;
 } = {}) {
-  const [media, setMedia] = useState<"image" | "video">(initialMedia);
   return (
     <div className="media-compressor">
-      <div className="media-tabs" role="tablist" aria-label="Choose what to compress">
-        <button role="tab" aria-selected={media === "image"} className={media === "image" ? "active" : ""} onClick={() => setMedia("image")}><ImageIcon size={18} /> Images</button>
-        <button role="tab" aria-selected={media === "video"} className={media === "video" ? "active" : ""} onClick={() => setMedia("video")}><Film size={18} /> Videos <span>New</span></button>
-      </div>
-      {media === "image" ? (
-        <Compressor defaultTargetKb={initialTargetKb} defaultFormat={initialFormat} />
-      ) : (
-        <VideoCompressor defaultTargetMb={initialTargetMb} defaultMode={initialVideoMode} />
-      )}
+      {/*
+        PHASE 2 VIDEO TABS (Preserved for future activation):
+        <div className="media-tabs" role="tablist" aria-label="Choose what to compress">
+          <button role="tab" aria-selected={media === "image"} className={media === "image" ? "active" : ""} onClick={() => setMedia("image")}><ImageIcon size={18} /> Images</button>
+          <button role="tab" aria-selected={media === "video"} className={media === "video" ? "active" : ""} onClick={() => setMedia("video")}><Film size={18} /> Videos <span>New</span></button>
+        </div>
+      */}
+      <Compressor defaultTargetKb={initialTargetKb} defaultFormat={initialFormat} />
     </div>
   );
 }
