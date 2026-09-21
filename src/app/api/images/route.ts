@@ -17,6 +17,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const MULTIPART_OVERHEAD_ALLOWANCE = 1024 * 1024;
+const maxFileMegabytes = MAX_FILE_BYTES / (1024 * 1024);
 
 export async function POST(request: Request) {
   try {
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
 
     const contentLength = Number(request.headers.get("content-length"));
     if (Number.isFinite(contentLength) && contentLength > MAX_FILE_BYTES + MULTIPART_OVERHEAD_ALLOWANCE) {
-      throw new ValidationError("Images must be 50 MB or smaller.", "FILE_TOO_LARGE", 413);
+      throw new ValidationError(`Images must be ${maxFileMegabytes} MB or smaller.`, "FILE_TOO_LARGE", 413);
     }
 
     const form = await request.formData();
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
     if (!(file instanceof File)) throw new ValidationError("Choose an image to compress.");
     if (file.size <= 0) throw new ValidationError("The selected file is empty.");
     if (file.size > MAX_FILE_BYTES) {
-      throw new ValidationError("Images must be 50 MB or smaller.", "FILE_TOO_LARGE", 413);
+      throw new ValidationError(`Images must be ${maxFileMegabytes} MB or smaller.`, "FILE_TOO_LARGE", 413);
     }
 
     const input = Buffer.from(await file.arrayBuffer());

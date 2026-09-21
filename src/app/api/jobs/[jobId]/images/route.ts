@@ -12,6 +12,8 @@ import type { JobFileRecord } from "@/lib/compression/types";
 
 export const runtime = "nodejs";
 
+const maxFileMegabytes = MAX_FILE_BYTES / (1024 * 1024);
+
 export async function POST(request: Request, { params }: { params: Promise<{ jobId: string }> }) {
   try {
     const clientIp = clientKey(request);
@@ -23,7 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ job
     const file = form.get("file");
     if (!(file instanceof File)) throw new ValidationError("Choose an image to compress.");
     if (file.size <= 0) throw new ValidationError("The selected file is empty.");
-    if (file.size > MAX_FILE_BYTES) throw new ValidationError("Images must be 50 MB or smaller.", "FILE_TOO_LARGE", 413);
+    if (file.size > MAX_FILE_BYTES) throw new ValidationError(`Images must be ${maxFileMegabytes} MB or smaller.`, "FILE_TOO_LARGE", 413);
 
     const input = Buffer.from(await file.arrayBuffer());
     const format = detectImageFormat(input);
