@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Archive, Check, ChevronDown, Download, ImageIcon, LoaderCircle, LockKeyhole, Maximize2, RefreshCw, Sparkles, Trash2, UploadCloud, X } from "lucide-react";
 import type { CompressionSettings, JobFileRecord, OutputFormat, ResizeMode } from "@/lib/compression/types";
+import { createClientZip } from "@/lib/client-zip";
 import { cn, formatBytes } from "@/lib/utils";
 
 type FileStatus = "ready" | "queued" | "uploading" | "processing" | "done" | "error" | "cancelled";
@@ -13,6 +14,8 @@ type UiFile = {
   status: FileStatus;
   progress: number;
   result?: JobFileRecord;
+  outputBlob?: Blob;
+  outputUrl?: string;
   error?: string;
 };
 
@@ -45,8 +48,8 @@ export function Compressor({
   const [advanced, setAdvanced] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
-  const [jobId, setJobId] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [zipping, setZipping] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const requests = useRef(new Map<string, XMLHttpRequest>());
   const itemsRef = useRef(items);
@@ -78,25 +81,22 @@ export function Compressor({
   }, []);
 
   useEffect(() => () => {
-    for (const item of itemsRef.current) URL.revokeObjectURL(item.preview);
+    for (const item of itemsRef.current) {
+      URL.revokeObjectURL(item.preview);
+      if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
+    }
     for (const request of requests.current.values()) request.abort();
   }, []);
 
   function removeItem(localId: string) {
     setItems((current) => {
       const item = current.find((entry) => entry.localId === localId);
-      if (item) URL.revokeObjectURL(item.preview);
+      if (item) {
+        URL.revokeObjectURL(item.preview);
+        if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
+      }
       return current.filter((entry) => entry.localId !== localId);
     });
-  }
-
-  async function ensureJob() {
-    if (jobId) return jobId;
-    const response = await fetch("/api/jobs", { method: "POST" });
-    if (!response.ok) throw new Error(await readError(await response.text()));
-    const payload = await response.json();
-    setJobId(payload.job.id);
-    return payload.job.id as string;
   }
 
   function settings(): CompressionSettings {
@@ -113,12 +113,13 @@ export function Compressor({
     };
   }
 
-  function uploadOne(item: UiFile, activeJobId: string) {
+  function uploadOne(item: UiFile) {
     return new Promise<void>((resolve) => {
       setItems((current) => current.map((entry) => entry.localId === item.localId ? { ...entry, status: "uploading", progress: 2, error: undefined } : entry));
       const request = new XMLHttpRequest();
       requests.current.set(item.localId, request);
-      request.open("POST", `/api/jobs/${activeJobId}/images`);
+      request.open("POST", "/api/images");
+      request.responseType = "blob";
       request.upload.onprogress = (event) => {
         if (!event.lengthComputable) return;
         const progress = Math.max(2, Math.min(78, Math.round((event.loaded / event.total) * 78)));
@@ -130,11 +131,25 @@ export function Compressor({
       request.onload = async () => {
         requests.current.delete(item.localId);
         if (request.status >= 200 && request.status < 300) {
-          const result = JSON.parse(request.responseText).file as JobFileRecord;
-          setItems((current) => current.map((entry) => entry.localId === item.localId ? { ...entry, status: "done", progress: 100, result } : entry));
+          try {
+            const metadata = request.getResponseHeader("X-Sizvo-Result");
+            if (!metadata) throw new Error("Compression response metadata is missing.");
+            const result = JSON.parse(decodeURIComponent(metadata)) as JobFileRecord;
+            const outputBlob = request.response as Blob;
+            const outputUrl = URL.createObjectURL(outputBlob);
+            setItems((current) => current.map((entry) => {
+              if (entry.localId !== item.localId) return entry;
+              if (entry.outputUrl) URL.revokeObjectURL(entry.outputUrl);
+              return { ...entry, status: "done", progress: 100, result, outputBlob, outputUrl };
+            }));
+          } catch (error) {
+            setItems((current) => current.map((entry) => entry.localId === item.localId
+              ? { ...entry, status: "error", error: error instanceof Error ? error.message : "Compression failed." }
+              : entry));
+          }
         } else {
           setItems((current) => current.map((entry) => entry.localId === item.localId ? { ...entry, status: "error", error: "Compression failed." } : entry));
-          const message = await readError(request.responseText);
+          const message = await readError(await (request.response as Blob).text());
           setItems((current) => current.map((entry) => entry.localId === item.localId ? { ...entry, error: message } : entry));
         }
         resolve();
@@ -171,12 +186,11 @@ export function Compressor({
     setGlobalError(null);
     setItems((current) => current.map((entry) => pending.some((item) => item.localId === entry.localId) ? { ...entry, status: "queued", progress: 0 } : entry));
     try {
-      const activeJobId = await ensureJob();
       let cursor = 0;
       const worker = async () => {
         while (cursor < pending.length) {
           const item = pending[cursor++];
-          await uploadOne(item, activeJobId);
+          await uploadOne(item);
         }
       };
       await Promise.all([worker(), worker()]);
@@ -190,12 +204,36 @@ export function Compressor({
 
   async function clearAll() {
     for (const request of requests.current.values()) request.abort();
-    if (jobId) void fetch(`/api/jobs/${jobId}`, { method: "DELETE", keepalive: true });
-    for (const item of items) URL.revokeObjectURL(item.preview);
+    for (const item of items) {
+      URL.revokeObjectURL(item.preview);
+      if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
+    }
     setItems([]);
-    setJobId(null);
     setRunning(false);
     setGlobalError(null);
+  }
+
+  async function downloadAll() {
+    const outputs = done.flatMap((item) => item.result && item.outputBlob
+      ? [{ name: item.result.fileName, blob: item.outputBlob }]
+      : []);
+    if (outputs.length < 2 || zipping) return;
+
+    setZipping(true);
+    setGlobalError(null);
+    try {
+      const archive = await createClientZip(outputs);
+      const url = URL.createObjectURL(archive);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "sizvo-images.zip";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    } catch (error) {
+      setGlobalError(error instanceof Error ? error.message : "Could not create the ZIP archive.");
+    } finally {
+      setZipping(false);
+    }
   }
 
   const done = items.filter((item) => item.status === "done");
@@ -312,12 +350,12 @@ export function Compressor({
                         )}
 
                         {/* Download link if done */}
-                        {item.status === "done" && item.result && jobId && (
+                        {item.status === "done" && item.result && item.outputUrl && (
                           <div className="preview-result-actions">
                             <span className="preview-new-size">{formatBytes(item.result.size)}</span>
                             <a
                               className="preview-download-btn"
-                              href={`/api/jobs/${jobId}/files/${item.result.id}`}
+                              href={item.outputUrl}
                               download
                               title={`Download ${item.result.fileName}`}
                               aria-label={`Download ${item.result.fileName}`}
@@ -493,10 +531,10 @@ export function Compressor({
               )}
             </div>
             <div className="action-buttons">
-              {done.length > 1 && jobId && (
-                <a className="button button-secondary zip-download-btn" href={`/api/jobs/${jobId}/archive`}>
-                  <Archive size={17} /> Download All (ZIP)
-                </a>
+              {done.length > 1 && (
+                <button type="button" className="button button-secondary zip-download-btn" onClick={downloadAll} disabled={zipping}>
+                  {zipping ? <><LoaderCircle className="spin" size={17} /> Creating ZIP…</> : <><Archive size={17} /> Download All (ZIP)</>}
+                </button>
               )}
               <button
                 type="button"
